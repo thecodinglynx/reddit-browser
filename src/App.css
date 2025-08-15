@@ -1,0 +1,245 @@
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2em;
+}
+.error-image {
+  width: 180px;
+  max-width: 80vw;
+  margin-bottom: 1em;
+  opacity: 0.8;
+}
+.error-container h2 {
+  color: #e53e3e;
+  font-size: 1.3em;
+  margin-bottom: 0.5em;
+}
+.error-container p {
+  color: #444;
+  font-size: 1em;
+}
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+}
+.slider-row input[type="range"] {
+  width: 180px;
+  accent-color: #3b82f6;
+  height: 2px;
+}
+.slider-value {
+  min-width: 40px;
+  color: #2563eb;
+  font-size: 0.98em;
+  opacity: 0.8;
+}
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+  padding: 1.2em 1.5em 1em 1.5em;
+  min-width: 260px;
+  max-width: 90vw;
+  position: relative;
+}
+.modal-title {
+  margin-top: 0;
+  margin-bottom: 0.7em;
+  font-size: 1.1em;
+  color: #333;
+  text-align: center;
+}
+.config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7em;
+  margin-bottom: 0;
+}
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+}
+.form-row label {
+  font-weight: 500;
+  color: #444;
+  font-size: 1em;
+}
+.form-row input {
+  padding: 0.35em 0.5em;
+  border-radius: 5px;
+  border: 1px solid #d1d5db;
+  font-size: 0.98em;
+  background: #f9fafb;
+  color: #222;
+}
+.form-actions {
+  display: flex;
+  gap: 0.7em;
+  justify-content: flex-end;
+  margin-top: 0.3em;
+}
+.cancel-btn {
+  background: #e5e7eb;
+  color: #333;
+  border: none;
+  border-radius: 5px;
+  padding: 0.35em 1em;
+  font-size: 0.98em;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+.cancel-btn:hover {
+  background: #d1d5db;
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1em;
+}
+.cog-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.3em;
+  border-radius: 50%;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cog-btn:hover {
+  background: #f3f4f6;
+}
+.progress-bar-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1em;
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0 2em;
+  z-index: 2;
+}
+.progress-seconds {
+  min-width: 40px;
+  text-align: right;
+  color: #2563eb;
+  font-size: 0.95em;
+  margin-left: 12px;
+  font-weight: normal;
+  display: flex;
+  align-items: center;
+  opacity: 0.7;
+  padding-top: 0;
+}
+.progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background: #e0e7ef;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+  transition: width 0.05s linear;
+}
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+
+.reddit-browser {
+  width: 600px;
+  min-height: 700px;
+  margin: 2em auto;
+  padding: 2em;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.config-form {
+  display: flex;
+  gap: 1em;
+  justify-content: center;
+  margin-bottom: 2em;
+}
+.config-form label {
+  display: flex;
+  flex-direction: column;
+  font-weight: bold;
+}
+.config-form input {
+  margin-top: 0.5em;
+  padding: 0.5em;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+.config-form button {
+  padding: 0.5em 1em;
+  border-radius: 4px;
+  border: none;
+  background: #ff4500;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+.image-viewer {
+  margin-top: 1em;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+.main-image {
+  width: 100%;
+  height: 400px;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin-top: 40px;
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
