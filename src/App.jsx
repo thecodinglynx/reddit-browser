@@ -146,7 +146,7 @@ function App() {
                 src={images[currentIdx].url}
                 alt={images[currentIdx].title}
                 className="main-image"
-                style={{ objectFit: "contain", width: "100%", height: "400px" }}
+                style={{ objectFit: "contain", width: "100%", height: "100%" }}
               />
             </a>
             <p>{images[currentIdx].title}</p>
