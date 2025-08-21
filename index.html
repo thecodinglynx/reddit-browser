@@ -6,22 +6,22 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reddit Browser</title>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
-      integrity="sha512-papm6QJQwQpQwQpQwQpQwQpQwQpQwQpQwQpQwQpQwQpQwQpQwQpQwQpQwQpQwQpQwQpQwQpQwQpQwQpQw=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    />
+    <!-- Font Awesome is imported from the local package via the app entry (see src/App.jsx) -->
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
+      // Only register the service worker in production (don't on localhost/dev)
       if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/service-worker.js");
-        });
+        if (
+          location.hostname !== "localhost" &&
+          location.protocol === "https:"
+        ) {
+          window.addEventListener("load", () => {
+            navigator.serviceWorker.register("/service-worker.js");
+          });
+        }
       }
     </script>
   </body>

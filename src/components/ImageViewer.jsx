@@ -1,11 +1,6 @@
 import React from "react";
 
-export default function ImageViewer({
-  images,
-  currentIdx,
-  setCurrentIdx,
-  setProgress,
-}) {
+export default function ImageViewer({ images, currentIdx, onNext, onPrev }) {
   const current = images[currentIdx];
   if (!current) return null;
 
@@ -70,8 +65,7 @@ export default function ImageViewer({
           className="nav-btn"
           aria-label="Previous image"
           onClick={() => {
-            setCurrentIdx((idx) => (idx - 1 + images.length) % images.length);
-            setProgress(0);
+            if (onPrev) onPrev();
           }}
           style={{ fontSize: "1.5em", padding: "8px 24px" }}
           disabled={images.length === 0}
@@ -83,8 +77,7 @@ export default function ImageViewer({
           className="nav-btn"
           aria-label="Next image"
           onClick={() => {
-            setCurrentIdx((idx) => (idx + 1) % images.length);
-            setProgress(0);
+            if (onNext) onNext();
           }}
           style={{ fontSize: "1.5em", padding: "8px 24px" }}
           disabled={images.length === 0}

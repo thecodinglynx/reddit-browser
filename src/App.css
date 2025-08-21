@@ -103,18 +103,17 @@
     padding: 16px;
     border-radius: 12px;
   }
-
-  .config-form input,
-  .config-form label,
-  .slider-row {
-    font-size: 1.1em;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .slider-row input[type="range"] {
-    width: 80vw;
-    max-width: 80vw;
+  .cog-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.3em;
+    border-radius: 50%;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0; /* ensure the button doesn't get squeezed on wider layouts */
   }
 
   .form-actions .cancel-btn {
@@ -125,8 +124,15 @@
 
   .error-container {
     width: 100vw;
-    padding: 16px 0;
+    height: calc(100vh - 56px);
+    padding: 16px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     text-align: center;
+    background: #92c2cd;
   }
   .error-image {
     width: 60vw;
@@ -193,7 +199,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin-top: 2em;
+  min-height: calc(100vh - 56px);
+  padding: 16px;
+  box-sizing: border-box;
+  background: #92c2cd;
 }
 .error-image {
   width: 180px;
@@ -202,13 +211,13 @@
   opacity: 0.8;
 }
 .error-container h2 {
-  color: #e53e3e;
-  font-size: 1.3em;
+  color: #5c0c0c;
+  font-size: 1em;
   margin-bottom: 0.5em;
 }
 .error-container p {
   color: #444;
-  font-size: 1em;
+  font-size: 0.9em;
 }
 .slider-row {
   display: flex;
@@ -321,13 +330,10 @@
 .progress-bar-row {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between; /* keep cog at right on desktop */
   gap: 1em;
-  width: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-  padding: 0 2em;
+  position: relative; /* keep the bar inside the reddit-browser card on desktop */
+  padding: 12px 16px;
   z-index: 2;
 }
 .progress-seconds {
@@ -343,11 +349,42 @@
   padding-top: 0;
 }
 .progress-bar-container {
-  width: 100%;
+  flex: 1 1 auto; /* allow the bar to grow/shrink to leave room for the cog */
+  width: auto;
   height: 8px;
   background: #e0e7ef;
   border-radius: 4px;
   overflow: hidden;
+}
+
+/* Desktop-only: pin the cog to the right edge of the progress row so it won't be
+   pushed off by the seconds counter or a long progress bar. Mobile rules (fixed
+   top bar) still apply from the media query above. */
+@media (min-width: 501px) {
+  .progress-bar-row {
+    position: relative; /* keep it absolute/positioned by outer rules but allow absolute children */
+  }
+  .progress-bar-row .cog-btn {
+    position: absolute;
+    right: 28px; /* moved further left from the border */
+    top: 6px;
+    z-index: 3;
+  }
+  .progress-bar-row .progress-seconds {
+    margin-right: 80px; /* reserve more space for the cog */
+  }
+  /* Make the cog visible during desktop debugging: white circular background + border */
+  .progress-bar-row .cog-btn {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 .progress-bar {
   height: 100%;
@@ -379,6 +416,7 @@
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
+  position: relative; /* contain absolute children like the progress row */
 }
 
 .config-form {
@@ -482,4 +520,10 @@
     gap: 20px;
     padding: 12px 0;
   }
+}
+
+/* When an error is active, color the whole app wrapper so the background covers the
+   entire reddit-browser surface (not just the .error-container). */
+.reddit-browser.error {
+  background: #92c2cd;
 }
