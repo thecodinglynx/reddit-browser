@@ -6,15 +6,62 @@ import ConfigModal from "./components/ConfigModal";
 import ImageViewer from "./components/ImageViewer";
 
 const DEFAULT_SUBREDDIT = "EarthPorn";
-const DEFAULT_INTERVAL = 120;
+const DEFAULT_INTERVAL = 30;
+
+// cookie helpers for persisting interval
+function readIntervalFromCookie() {
+  try {
+    if (typeof document === "undefined") return DEFAULT_INTERVAL;
+    const match = document.cookie.match("(?:^|; )rb_interval=([^;]*)");
+    if (match && match[1]) {
+      const v = Number(decodeURIComponent(match[1]));
+      if (!Number.isNaN(v) && v > 0) return v;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return DEFAULT_INTERVAL;
+}
+
+function writeIntervalCookie(sec) {
+  try {
+    if (typeof document === "undefined") return;
+    const days = 365;
+    const expires = new Date(
+      Date.now() + days * 24 * 60 * 60 * 1000
+    ).toUTCString();
+    document.cookie = `rb_interval=${encodeURIComponent(
+      sec
+    )}; expires=${expires}; path=/`;
+  } catch (e) {
+    // ignore
+  }
+}
+
+// normalize subreddit input: strip leading r/ or /r/ and lowercase
+function normalizeSubreddit(s) {
+  try {
+    if (!s && s !== "") return "";
+    return String(s)
+      .trim()
+      .replace(/^\/?r\//i, "")
+      .toLowerCase();
+  } catch (e) {
+    return "";
+  }
+}
 
 function App() {
   const subredditInputRef = useRef(null);
   const [hasFetched, setHasFetched] = useState(false);
   const [fetchError, setFetchError] = useState(false);
-  const [subreddit, setSubreddit] = useState(DEFAULT_SUBREDDIT);
+  const [subreddit, setSubreddit] = useState(() =>
+    normalizeSubreddit(DEFAULT_SUBREDDIT)
+  );
   const [subredditInput, setSubredditInput] = useState(DEFAULT_SUBREDDIT);
-  const [intervalSec, setIntervalSec] = useState(DEFAULT_INTERVAL);
+  const [intervalSec, setIntervalSec] = useState(() =>
+    readIntervalFromCookie()
+  );
   const [showConfig, setShowConfig] = useState(false);
   const [redditToken, setRedditToken] = useState(() => {
     try {
@@ -55,8 +102,9 @@ function App() {
   // Debounce subreddit input
   useEffect(() => {
     const handler = setTimeout(() => {
-      if (subredditInput !== subreddit) {
-        setSubreddit(subredditInput);
+      const norm = normalizeSubreddit(subredditInput);
+      if (norm !== subreddit) {
+        setSubreddit(norm);
       }
     }, 500);
     return () => clearTimeout(handler);
@@ -71,6 +119,11 @@ function App() {
       // ignore
     }
   }, [redditToken]);
+
+  // persist interval to cookie so duration survives sessions
+  useEffect(() => {
+    writeIntervalCookie(intervalSec);
+  }, [intervalSec]);
 
   // load runtime config from public/config.json (if present)
   useEffect(() => {
@@ -314,7 +367,7 @@ function App() {
     }, intervalMs);
     prevImagesLenRef.current = images.length;
     return () => clearInterval(timerRef.current);
-  }, [images, intervalSec, afterToken]);
+  }, [images, intervalSec]);
 
   // navigation handlers used by ImageViewer and auto-advance
   function handleNext() {

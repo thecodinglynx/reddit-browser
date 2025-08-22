@@ -14,32 +14,37 @@ export default function ConfigModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <form className="config-form">
+        <form className="config-form" autoComplete="off">
+          {/* hidden fields to steal browser autofill in stubborn browsers */}
+          <input
+            type="text"
+            name="__fake_username"
+            autoComplete="username"
+            style={{ display: "none" }}
+          />
+          <input
+            type="password"
+            name="__fake_password"
+            autoComplete="new-password"
+            style={{ display: "none" }}
+          />
           <div className="form-row">
             <label htmlFor="subreddit">Subreddit</label>
             <input
-              name="subreddit"
+              // use a less-guessable name to reduce browser autofill likelihood
+              name={`subreddit_${Math.random().toString(36).slice(2, 8)}`}
               id="subreddit"
               ref={subredditInputRef}
               value={subredditInput}
               autoFocus
               onFocus={(e) => e.target.select()}
               onChange={(e) => setSubredditInput(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+              autoCorrect="off"
+              autoCapitalize="none"
+              type="search"
             />
-          </div>
-          <div className="form-row">
-            <label htmlFor="redditToken">Reddit access token (optional)</label>
-            <input
-              name="redditToken"
-              id="redditToken"
-              value={redditToken}
-              placeholder="Paste OAuth access token here"
-              onChange={(e) => setRedditToken(e.target.value)}
-            />
-            <small style={{ color: "#666" }}>
-              Optional: paste a Reddit OAuth access token to increase rate
-              limits. For security, prefer using a server-side proxy.
-            </small>
           </div>
 
           <div className="form-row">
@@ -50,7 +55,7 @@ export default function ConfigModal({
                 id="interval"
                 type="range"
                 min="5"
-                max="300"
+                max="120"
                 value={intervalSec}
                 step="1"
                 onChange={(e) => setIntervalSec(Number(e.target.value))}
