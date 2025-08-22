@@ -2,33 +2,52 @@
 // Usage: /api/proxy?url=<encoded target url>
 export default async function handler(req, res) {
   try {
-    const target = req.query.url || req.query.u;
-    if (!target) {
+    const raw = req.query.url || req.query.u;
+    if (!raw) {
       res.statusCode = 400;
       res.end("Missing url parameter\n");
       return;
     }
+    // query param may be encoded
+    let target;
+    try {
+      target = decodeURIComponent(raw);
+    } catch (e) {
+      target = raw;
+    }
 
     const allowed = [
       "reddit.com",
-      "www.reddit.com",
-      "i.redd.it",
-      "v.redd.it",
+      "redd.it",
       "imgur.com",
-      "i.imgur.com",
       "gfycat.com",
-      "giant.gfycat.com",
-      "media.giphy.com",
       "giphy.com",
-      "i.redd.it",
-      "i.redd.it",
+      "redgifs.com",
+      "streamable.com",
+      "tenor.com",
     ];
-    const u = new URL(target);
+    let u;
+    try {
+      u = new URL(target);
+    } catch (e) {
+      res.statusCode = 400;
+      res.end("Invalid target URL\n");
+      return;
+    }
     const host = u.hostname.toLowerCase();
     const ok = allowed.some((a) => host === a || host.endsWith("." + a));
+    console.log("proxy request", {
+      target,
+      host,
+      ok,
+      from:
+        req.headers.origin ||
+        req.headers.referer ||
+        req.connection.remoteAddress,
+    });
     if (!ok) {
       res.statusCode = 403;
-      res.end("Host not allowed\n");
+      res.end(`Host not allowed: ${host}\n`);
       return;
     }
 

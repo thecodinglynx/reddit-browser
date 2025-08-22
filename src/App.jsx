@@ -66,6 +66,20 @@ function getExternalVideoUrl(rawUrl) {
       if (id) return `https://giant.gfycat.com/${id}.mp4`;
     }
 
+    // redgifs: try to map https://www.redgifs.com/watch/<id> to thumbs2.redgifs.com/<id>-mobile.mp4
+    if (host.endsWith("redgifs.com")) {
+      const parts = path.split("/").filter(Boolean);
+      const id = parts.pop();
+      if (id) return `https://thumbs2.redgifs.com/${id}-mobile.mp4`;
+    }
+
+    // streamable: https://streamable.com/<id> -> https://cdn.streamable.com/video/mp4/<id>.mp4 (best effort)
+    if (host.endsWith("streamable.com")) {
+      const parts = path.split("/").filter(Boolean);
+      const id = parts.pop();
+      if (id) return `https://cdn.streamable.com/video/mp4/${id}.mp4`;
+    }
+
     // imgur direct or page links
     if (host.endsWith("imgur.com")) {
       // i.imgur.com direct images
