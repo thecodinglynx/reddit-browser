@@ -51,6 +51,77 @@ function normalizeSubreddit(s) {
   }
 }
 
+// Heuristic resolver for common external hosts to produce an MP4 URL when possible.
+function getExternalVideoUrl(rawUrl) {
+  try {
+    if (!rawUrl) return null;
+    const url = new URL(rawUrl);
+    const host = url.hostname.replace(/^www\./, "").toLowerCase();
+    const path = url.pathname || "";
+
+    // gfycat: https://gfycat.com/SomeName -> https://giant.gfycat.com/SomeName.mp4
+    if (host.endsWith("gfycat.com")) {
+      const parts = path.split("/").filter(Boolean);
+      const id = parts.pop();
+      if (id) return `https://giant.gfycat.com/${id}.mp4`;
+    }
+
+    // imgur direct or page links
+    if (host.endsWith("imgur.com")) {
+      // i.imgur.com direct images
+      const idWithExt = path.split("/").pop();
+      if (idWithExt) {
+        // replace .gifv or .gif with .mp4
+        if (idWithExt.endsWith(".gifv") || idWithExt.endsWith(".gif")) {
+          return rawUrl.replace(/\.gifv?$/i, ".mp4");
+        }
+        // page link like imgur.com/abcd -> i.imgur.com/abcd.mp4
+        const id = idWithExt.split(".")[0];
+        if (id) return `https://i.imgur.com/${id}.mp4`;
+      }
+    }
+
+    // giphy media urls: media.giphy.com/media/<id>/giphy.gif -> /giphy.mp4
+    if (
+      host.endsWith("giphy.com") ||
+      host.endsWith("media.giphy.com") ||
+      host.startsWith("i.")
+    ) {
+      if (/giphy/i.test(path)) {
+        // try to swap gif/gifv -> mp4
+        if (/\.gifv?$/.test(path)) return rawUrl.replace(/\.gifv?$/i, ".mp4");
+        if (path.endsWith("/giphy.gif") || path.endsWith("/source.gif")) {
+          return rawUrl.replace(/giphy\.gif|source\.gif/i, "giphy.mp4");
+        }
+      }
+    }
+
+    // fallback: if the URL ends with .gifv/.gif -> try .mp4
+    if (/\.gifv?$/i.test(rawUrl)) return rawUrl.replace(/\.gifv?$/i, ".mp4");
+  } catch (e) {
+    // ignore
+  }
+  return null;
+}
+
+// build a proxy URL when deployed on a host that supports the API route
+function buildProxyUrl(target) {
+  try {
+    if (!target) return target;
+    // In Vercel, the api route is available under the same origin.
+    // Use it in production to avoid CORS issues.
+    if (typeof window !== "undefined" && window.location.hostname) {
+      // only use proxy when not localhost
+      if (window.location.hostname === "localhost") return target;
+      const encoded = encodeURIComponent(target);
+      return `/api/proxy?url=${encoded}`;
+    }
+    return target;
+  } catch (e) {
+    return target;
+  }
+}
+
 function App() {
   const subredditInputRef = useRef(null);
   const [hasFetched, setHasFetched] = useState(false);
@@ -153,9 +224,10 @@ function App() {
 
   // helper: fetch a page of posts
   async function fetchPage(after = null) {
-    const url = `https://corsproxy.io/?https://www.reddit.com/r/${subreddit}/hot.json?limit=50${
+    const redditUrl = `https://www.reddit.com/r/${subreddit}/hot.json?limit=50${
       after ? `&after=${after}` : ""
     }`;
+    const url = buildProxyUrl(redditUrl);
     const headers = {};
     if (redditToken) headers["Authorization"] = `Bearer ${redditToken}`;
     const res = await fetch(url, { headers });
@@ -177,6 +249,19 @@ function App() {
             ? d.preview.images[0].source.url.replace(/&amp;/g, "&")
             : null;
 
+        // reddit sometimes provides an mp4 preview for GIFs/videos
+        const maybePreviewVideo =
+          (d.preview &&
+          d.preview.reddit_video_preview &&
+          d.preview.reddit_video_preview.fallback_url
+            ? d.preview.reddit_video_preview.fallback_url.replace(/&amp;/g, "&")
+            : null) ||
+          (d.secure_media &&
+          d.secure_media.reddit_video &&
+          d.secure_media.reddit_video.fallback_url
+            ? d.secure_media.reddit_video.fallback_url
+            : null);
+
         const postId = d.id || (d.name ? d.name.replace(/^t3_/, "") : null);
 
         if (
@@ -187,7 +272,8 @@ function App() {
         ) {
           return {
             type: "video",
-            url: d.media.reddit_video.fallback_url,
+            url: buildProxyUrl(d.media.reddit_video.fallback_url),
+            origUrl: d.media.reddit_video.fallback_url,
             poster: maybePreview || d.thumbnail || null,
             title: d.title,
             permalink: d.permalink,
@@ -206,10 +292,25 @@ function App() {
           };
         }
 
+        // check external resolvers first
+        const externalMp4 = getExternalVideoUrl(rawUrl);
+        if (externalMp4) {
+          return {
+            type: "video",
+            url: buildProxyUrl(externalMp4),
+            origUrl: externalMp4,
+            poster: maybePreview || d.thumbnail || null,
+            title: d.title,
+            permalink: d.permalink,
+            id: postId,
+          };
+        }
+
         if (lower.endsWith(".mp4") || lower.endsWith(".webm")) {
           return {
             type: "video",
-            url: rawUrl,
+            url: buildProxyUrl(rawUrl),
+            origUrl: rawUrl,
             poster: maybePreview || d.thumbnail || null,
             title: d.title,
             permalink: d.permalink,
@@ -231,6 +332,19 @@ function App() {
           return {
             type: "image",
             url: maybePreview || rawUrl,
+            title: d.title,
+            permalink: d.permalink,
+            id: postId,
+          };
+        }
+
+        // fallback: if there's a preview video available, prefer showing it as video
+        if (maybePreviewVideo) {
+          return {
+            type: "video",
+            url: buildProxyUrl(maybePreviewVideo),
+            origUrl: maybePreviewVideo,
+            poster: maybePreview || d.thumbnail || null,
             title: d.title,
             permalink: d.permalink,
             id: postId,
