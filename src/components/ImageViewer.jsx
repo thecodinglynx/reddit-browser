@@ -7,20 +7,17 @@ export default function ImageViewer({ images, currentIdx, onNext, onPrev }) {
   return (
     <div className="image-viewer">
       <div
+        className="image-wrap"
         style={{
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
           gap: "16px",
           marginBottom: "8px",
+          position: "relative",
         }}
       >
-        <a
-          href={`https://reddit.com${current.permalink}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ flex: 1 }}
-        >
+        <div style={{ flex: 1 }}>
           {current.type === "video" ? (
             <video
               className="main-image"
@@ -48,43 +45,49 @@ export default function ImageViewer({ images, currentIdx, onNext, onPrev }) {
               }}
             />
           )}
-        </a>
+        </div>
+
+        {/* nav-row overlay inside image-wrap */}
+        <div
+          className="nav-row"
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 18,
+            display: "flex",
+            justifyContent: "center",
+            gap: "32px",
+          }}
+        >
+          <button
+            type="button"
+            className="nav-btn"
+            aria-label="Previous image"
+            onClick={() => {
+              if (onPrev) onPrev();
+            }}
+            style={{ fontSize: "1.5em", padding: "8px 24px" }}
+            disabled={images.length === 0}
+          >
+            <i className="fa-solid fa-chevron-left"></i>
+          </button>
+          <button
+            type="button"
+            className="nav-btn"
+            aria-label="Next image"
+            onClick={() => {
+              if (onNext) onNext();
+            }}
+            style={{ fontSize: "1.5em", padding: "8px 24px" }}
+            disabled={images.length === 0}
+          >
+            <i className="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
       </div>
+
       <p style={{ textAlign: "center" }}>{current.title}</p>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          gap: "32px",
-          marginTop: "12px",
-        }}
-      >
-        <button
-          type="button"
-          className="nav-btn"
-          aria-label="Previous image"
-          onClick={() => {
-            if (onPrev) onPrev();
-          }}
-          style={{ fontSize: "1.5em", padding: "8px 24px" }}
-          disabled={images.length === 0}
-        >
-          <i className="fa-solid fa-chevron-left"></i>
-        </button>
-        <button
-          type="button"
-          className="nav-btn"
-          aria-label="Next image"
-          onClick={() => {
-            if (onNext) onNext();
-          }}
-          style={{ fontSize: "1.5em", padding: "8px 24px" }}
-          disabled={images.length === 0}
-        >
-          <i className="fa-solid fa-chevron-right"></i>
-        </button>
-      </div>
     </div>
   );
 }
