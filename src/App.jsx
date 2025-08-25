@@ -144,6 +144,8 @@ function App() {
     normalizeSubreddit(DEFAULT_SUBREDDIT)
   );
   const [subredditInput, setSubredditInput] = useState(DEFAULT_SUBREDDIT);
+  const [sourceType, setSourceType] = useState("subreddit");
+  const [userInput, setUserInput] = useState("");
   const [intervalSec, setIntervalSec] = useState(() =>
     readIntervalFromCookie()
   );
@@ -195,6 +197,15 @@ function App() {
     return () => clearTimeout(handler);
   }, [subredditInput]);
 
+  // When sourceType or userInput changes, debounce and trigger a fetch
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      // bump fetchTrigger to force init() effect to run
+      setFetchTrigger((v) => v + 1);
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [sourceType, userInput]);
+
   // persist reddit token to localStorage
   useEffect(() => {
     try {
@@ -238,9 +249,20 @@ function App() {
 
   // helper: fetch a page of posts
   async function fetchPage(after = null) {
-    const redditUrl = `https://www.reddit.com/r/${subreddit}/hot.json?limit=50${
-      after ? `&after=${after}` : ""
-    }`;
+    const afterPart = after ? `&after=${after}` : "";
+    let redditUrl;
+    if (sourceType === "user") {
+      // normalize user: strip leading /u/ or u/
+      const uname = String(userInput || subreddit)
+        .trim()
+        .replace(/^\/?u\//i, "");
+      redditUrl = `https://www.reddit.com/user/${encodeURIComponent(
+        uname
+      )}/submitted.json?limit=50${afterPart}`;
+    } else {
+      redditUrl = `https://www.reddit.com/r/${subreddit}/hot.json?limit=50${afterPart}`;
+    }
+    console.log("fetchPage requesting:", redditUrl);
     const url = buildProxyUrl(redditUrl);
     const headers = {};
     if (redditToken) headers["Authorization"] = `Bearer ${redditToken}`;
@@ -610,6 +632,10 @@ function App() {
             subredditInputRef={subredditInputRef}
             subredditInput={subredditInput}
             setSubredditInput={setSubredditInput}
+            sourceType={sourceType}
+            setSourceType={setSourceType}
+            userInput={userInput}
+            setUserInput={setUserInput}
             redditToken={redditToken}
             setRedditToken={setRedditToken}
             intervalSec={intervalSec}
@@ -647,7 +673,11 @@ function App() {
               alt="Subreddit not found"
               className="error-image"
             />
-            <h2>Subreddit "{subreddit}" could not be found</h2>
+            <h2>
+              {sourceType === "user" ? "User" : "Subreddit"} "
+              {sourceType === "user" ? userInput || subreddit : subreddit}"
+              could not be found
+            </h2>
             <p>
               {fetchError
                 ? "Network error or Reddit API unavailable. Please try again."
