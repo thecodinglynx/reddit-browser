@@ -23,6 +23,36 @@ function readIntervalFromCookie() {
   return DEFAULT_INTERVAL;
 }
 
+// recent users cookie helpers
+function readRecentUsersFromCookie() {
+  try {
+    if (typeof document === "undefined") return [];
+    const match = document.cookie.match("(?:^|; )rb_recent_users=([^;]*)");
+    if (match && match[1]) {
+      const v = decodeURIComponent(match[1]);
+      const arr = JSON.parse(v);
+      if (Array.isArray(arr)) return arr;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return [];
+}
+
+function writeRecentUsersCookie(users) {
+  try {
+    if (typeof document === "undefined") return;
+    const days = 365 * 2;
+    const expires = new Date(
+      Date.now() + days * 24 * 60 * 60 * 1000
+    ).toUTCString();
+    const payload = encodeURIComponent(JSON.stringify(users));
+    document.cookie = `rb_recent_users=${payload}; expires=${expires}; path=/`;
+  } catch (e) {
+    // ignore
+  }
+}
+
 function writeIntervalCookie(sec) {
   try {
     if (typeof document === "undefined") return;
@@ -146,6 +176,9 @@ function App() {
   const [subredditInput, setSubredditInput] = useState(DEFAULT_SUBREDDIT);
   const [sourceType, setSourceType] = useState("subreddit");
   const [userInput, setUserInput] = useState("");
+  const [recentUsers, setRecentUsers] = useState(() =>
+    readRecentUsersFromCookie()
+  );
   const [intervalSec, setIntervalSec] = useState(() =>
     readIntervalFromCookie()
   );
@@ -468,6 +501,26 @@ function App() {
           return id ? !seen.has(id) && !sessionSeen.has(id) : true;
         });
         setImages(filtered);
+        // if we fetched a user's submissions and got results, persist the username to recent list
+        if (sourceType === "user") {
+          try {
+            const uname = String(userInput || subreddit)
+              .trim()
+              .replace(/^\/?u\//i, "");
+            if (filtered.length > 0 && uname) {
+              setRecentUsers((prev) => {
+                const next = [uname, ...prev.filter((p) => p !== uname)].slice(
+                  0,
+                  10
+                );
+                try {
+                  writeRecentUsersCookie(next);
+                } catch (e) {}
+                return next;
+              });
+            }
+          } catch (e) {}
+        }
       } catch (e) {
         setImages([]);
         setFetchError(true);
@@ -640,6 +693,9 @@ function App() {
             setRedditToken={setRedditToken}
             intervalSec={intervalSec}
             setIntervalSec={setIntervalSec}
+            recentUsers={recentUsers}
+            setRecentUsers={setRecentUsers}
+            writeRecentUsersCookie={writeRecentUsersCookie}
             onClose={() => setShowConfig(false)}
             onClearSeen={() => {
               try {

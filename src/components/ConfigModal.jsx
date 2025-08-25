@@ -8,6 +8,9 @@ export default function ConfigModal({
   setSourceType,
   userInput,
   setUserInput,
+  recentUsers,
+  setRecentUsers,
+  writeRecentUsersCookie,
   redditToken,
   setRedditToken,
   intervalSec,
@@ -15,6 +18,7 @@ export default function ConfigModal({
   onClose,
   onClearSeen,
 }) {
+  const recentSelectRef = React.useRef(null);
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -93,19 +97,87 @@ export default function ConfigModal({
                 id="user"
                 value={userInput}
                 onFocus={(e) => {
+                  e.target.select();
                   if (setSourceType) setSourceType("user");
                 }}
                 onChange={(e) => {
                   setUserInput(e.target.value);
                   if (setSourceType) setSourceType("user");
                 }}
-                autoComplete="off"
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="none"
                 type="search"
                 aria-label="User"
               />
+
+              {recentUsers && recentUsers.length > 0 && (
+                <select
+                  aria-label="Recent users"
+                  ref={recentSelectRef}
+                  value={
+                    recentUsers && recentUsers.includes(userInput)
+                      ? userInput
+                      : ""
+                  }
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v) {
+                      setUserInput(v);
+                      if (setSourceType) setSourceType("user");
+                    }
+                  }}
+                  style={{ marginLeft: 8 }}
+                >
+                  <option value="">Recent</option>
+                  {recentUsers.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <button
+                type="button"
+                aria-label="Clear user and switch to subreddit"
+                title="Clear user"
+                className="icon-btn"
+                onClick={() => {
+                  try {
+                    setUserInput("");
+                  } catch (e) {}
+                  try {
+                    if (recentSelectRef && recentSelectRef.current) {
+                      recentSelectRef.current.value = "";
+                    }
+                  } catch (e) {}
+                  // clear the stored recent users and cookie
+                  try {
+                    if (setRecentUsers) setRecentUsers([]);
+                  } catch (e) {}
+                  try {
+                    if (writeRecentUsersCookie) writeRecentUsersCookie([]);
+                  } catch (e) {}
+                  if (setSourceType) setSourceType("subreddit");
+                  try {
+                    if (subredditInputRef && subredditInputRef.current) {
+                      subredditInputRef.current.focus();
+                      subredditInputRef.current.select();
+                    }
+                  } catch (e) {}
+                }}
+                style={{
+                  marginLeft: 6,
+                  background: "none",
+                  border: "none",
+                  padding: 6,
+                  cursor: "pointer",
+                  color: "#666",
+                }}
+              >
+                <i className="fas fa-times-circle" aria-hidden></i>
+              </button>
             </div>
           </div>
 
