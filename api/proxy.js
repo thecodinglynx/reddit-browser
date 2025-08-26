@@ -140,25 +140,39 @@ export default async function handler(req, res) {
     if (!forwardHeaders["Authorization"]) {
       const appToken = await getAppToken();
       if (appToken) {
+        // attach server-side token but do NOT rewrite the hostname to oauth.reddit.com
+        // rewriting the host can cause 403s when the token is not appropriate for the
+        // requested endpoint; keep the original target and only add Authorization.
         forwardHeaders["Authorization"] = `bearer ${appToken}`;
-        // if target is reddit.com, prefer oauth.reddit.com when using a bearer token
-        try {
-          const u2 = new URL(target);
-          if (
-            u2.hostname &&
-            u2.hostname.endsWith("reddit.com") &&
-            !u2.hostname.startsWith("oauth.")
-          ) {
-            u2.hostname = "oauth.reddit.com";
-            target = u2.toString();
-          }
-        } catch (e) {
-          // ignore URL parsing errors here
-        }
       }
     }
 
+    // diagnostic: log outgoing request target and header summary (no secrets)
+    try {
+      console.log("proxy -> fetch", {
+        target,
+        hasAuth: Boolean(forwardHeaders["Authorization"]),
+        userAgent: forwardHeaders["User-Agent"] ? true : false,
+      });
+    } catch (e) {}
+
     const r = await fetch(target, { headers: forwardHeaders });
+
+    // if remote returned non-OK, attempt to capture a short snippet for logs
+    if (!r.ok) {
+      try {
+        const txt = await r
+          .clone()
+          .text()
+          .catch(() => "");
+        console.warn("proxy remote non-ok", {
+          status: r.status,
+          snippet: txt.slice(0, 2000),
+        });
+      } catch (e) {
+        // ignore logging errors
+      }
+    }
 
     // stream the body back
     const arrayBuffer = await r.arrayBuffer();
