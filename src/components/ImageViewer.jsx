@@ -7,6 +7,7 @@ export default function ImageViewer({
   onPrev,
   paused,
   onTogglePaused,
+  onAuthorClick,
 }) {
   const current = images[currentIdx];
   if (!current) return null;
@@ -163,7 +164,25 @@ export default function ImageViewer({
             <i className="fa-solid fa-chevron-right"></i>
           </button>
           {/* uploader badge bottom-right (visually aligned with nav buttons) */}
+          {/** uploader badge — clickable to add to recent users **/}
           <div
+            role={onAuthorClick ? "button" : undefined}
+            onClick={() => {
+              if (!onAuthorClick) return;
+              // pass raw author (without u/ prefix) to parent
+              try {
+                const a = String(rawAuthor || "").trim();
+                const uname = a.replace(/^\/?:?u\//i, "");
+                if (
+                  uname &&
+                  uname !== "[deleted]" &&
+                  uname.toLowerCase() !== "null"
+                ) {
+                  onAuthorClick(uname);
+                }
+              } catch (e) {}
+            }}
+            title={displayAuthor === "unknown" ? "" : "Add to recent users"}
             style={{
               position: "absolute",
               right: 12,
@@ -177,7 +196,8 @@ export default function ImageViewer({
               boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
               display: "inline-block",
               zIndex: 9999,
-              pointerEvents: "none",
+              pointerEvents: displayAuthor === "unknown" ? "none" : "auto",
+              cursor: displayAuthor === "unknown" ? "default" : "pointer",
             }}
           >
             {displayAuthor}

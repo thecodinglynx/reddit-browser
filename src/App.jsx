@@ -238,6 +238,21 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [paused, setPaused] = useState(false);
 
+  // small UI toast for feedback (e.g. when adding recent user)
+  const [toast, setToast] = useState("");
+  const toastTimerRef = useRef(null);
+
+  function showToast(msg, ms = 2200) {
+    try {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      setToast(msg);
+      toastTimerRef.current = setTimeout(() => {
+        setToast("");
+        toastTimerRef.current = null;
+      }, ms);
+    } catch (e) {}
+  }
+
   const [images, setImages] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -858,7 +873,47 @@ function App() {
             onPrev={handlePrev}
             paused={paused}
             onTogglePaused={() => setPaused((v) => !v)}
+            onAuthorClick={(raw) => {
+              try {
+                const uname = String(raw || "")
+                  .trim()
+                  .replace(/^\/?u\//i, "");
+                if (!uname) return;
+                // only add if not already present
+                setRecentUsers((prev) => {
+                  if (prev && prev.includes(uname)) return prev;
+                  const next = [
+                    uname,
+                    ...(Array.isArray(prev) ? prev : []),
+                  ].slice(0, 10);
+                  try {
+                    writeRecentUsersCookie(next);
+                  } catch (e) {}
+                  // show confirmation toast
+                  showToast(`Added ${uname} to recent users`);
+                  return next;
+                });
+              } catch (e) {}
+            }}
           />
+        )}
+        {/* small toast */}
+        {toast && (
+          <div
+            className="toast"
+            style={{
+              position: "fixed",
+              right: 16,
+              bottom: 16,
+              background: "rgba(0,0,0,0.8)",
+              color: "#fff",
+              padding: "8px 12px",
+              borderRadius: 6,
+              zIndex: 99999,
+            }}
+          >
+            {toast}
+          </div>
         )}
         {!loading && hasFetched && (images.length === 0 || fetchError) && (
           <div className="error-container">

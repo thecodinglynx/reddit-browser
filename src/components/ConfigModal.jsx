@@ -263,7 +263,7 @@ export default function ConfigModal({
                 min="5"
                 max="120"
                 value={intervalSec}
-                step="1"
+                step="5"
                 onChange={(e) => setIntervalSec(Number(e.target.value))}
               />
               <span
