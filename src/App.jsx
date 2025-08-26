@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./App.css";
 import ProgressBar from "./components/ProgressBar";
@@ -674,6 +674,21 @@ function App() {
   const errorActive =
     !loading && hasFetched && (images.length === 0 || fetchError);
 
+  // choose a random error image whenever an error view becomes active
+  const errorImages = ["/error.png", "/error2.png", "/error3.png"];
+  const [errorImage, setErrorImage] = useState(
+    () => errorImages[Math.floor(Math.random() * errorImages.length)]
+  );
+
+  useEffect(() => {
+    if (errorActive) {
+      setErrorImage(
+        errorImages[Math.floor(Math.random() * errorImages.length)]
+      );
+    }
+    // only react to errorActive changes
+  }, [errorActive]);
+
   return (
     <>
       <div className={`reddit-browser ${errorActive ? "error" : ""}`}>
@@ -723,7 +738,7 @@ function App() {
         {!loading && hasFetched && (images.length === 0 || fetchError) && (
           <div className="error-container">
             <img
-              src="/error.png"
+              src={errorImage}
               alt="Subreddit not found"
               className="error-image"
             />

@@ -29,6 +29,16 @@ npm run dev
 
 3. Open the local dev URL shown by Vite in your browser or device.
 
+### Start both the proxy and the UI (LAN-accessible)
+
+If you want to run the local proxy and the Vite dev server together and expose the UI to other machines on your network, use:
+
+```powershell
+npx concurrently "npm run start:proxy" "npm run dev -- --host 0.0.0.0"
+```
+
+This starts the proxy on port 3000 and the Vite dev server on port 5173 and binds Vite to all interfaces so other devices on the same LAN can reach the app at `http://<your-ip>:5173`.
+
 ## Build for production
 
 ```powershell
