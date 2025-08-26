@@ -87,7 +87,7 @@ export default function ConfigModal({
             </div>
           </div>
 
-          <div className="form-row" style={{ marginTop: 8 }}>
+          <div className="form-row">
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span aria-hidden style={{ color: "#666", minWidth: 22 }}>
                 u/
@@ -182,7 +182,10 @@ export default function ConfigModal({
           </div>
 
           <div className="form-row">
-            <label htmlFor="interval">Interval (seconds)</label>
+            {/* keep label for screen readers but hide visually */}
+            <label htmlFor="interval" className="visually-hidden">
+              Interval (seconds)
+            </label>
             <div className="slider-row">
               <input
                 name="interval"
@@ -194,9 +197,15 @@ export default function ConfigModal({
                 step="1"
                 onChange={(e) => setIntervalSec(Number(e.target.value))}
               />
-              <span className="slider-value">{intervalSec}s</span>
+              <span
+                className="slider-value"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+              >
+                {intervalSec}s<i className="fas fa-sync-alt" aria-hidden></i>
+              </span>
             </div>
           </div>
+
           <div className="form-actions">
             <button type="button" className="cancel-btn" onClick={onClose}>
               Close

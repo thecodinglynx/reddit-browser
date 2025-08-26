@@ -155,8 +155,8 @@ function buildProxyUrl(target) {
     // In Vercel, the api route is available under the same origin.
     // Use it in production to avoid CORS issues.
     if (typeof window !== "undefined" && window.location.hostname) {
-      // only use proxy when not localhost
-      if (window.location.hostname === "localhost") return target;
+      // Always use the local /api/proxy during development and when running in the browser.
+      // The Vite dev server is configured to proxy /api to the local proxy server.
       const encoded = encodeURIComponent(target);
       return `/api/proxy?url=${encoded}`;
     }
@@ -165,6 +165,9 @@ function buildProxyUrl(target) {
     return target;
   }
 }
+
+// simple in-memory cache to deduplicate concurrent page fetches by URL
+const fetchCache = new Map();
 
 function App() {
   const subredditInputRef = useRef(null);
@@ -280,7 +283,7 @@ function App() {
   const [loadingMore, setLoadingMore] = useState(false);
   // pendingAdvance removed; use loadMore(true) to request auto-advance
 
-  // helper: fetch a page of posts
+  // helper: fetch a page of posts (deduplicated)
   async function fetchPage(after = null) {
     const afterPart = after ? `&after=${after}` : "";
     let redditUrl;
@@ -295,136 +298,154 @@ function App() {
     } else {
       redditUrl = `https://www.reddit.com/r/${subreddit}/hot.json?limit=50${afterPart}`;
     }
-    console.log("fetchPage requesting:", redditUrl);
-    const url = buildProxyUrl(redditUrl);
-    const headers = {};
-    if (redditToken) headers["Authorization"] = `Bearer ${redditToken}`;
-    const res = await fetch(url, { headers });
-    if (!res.ok) throw new Error("Network error");
-    const data = await res.json();
-    const posts = data.data?.children || [];
-    const imgs = posts
-      .map((p) => p.data)
-      .map((d) => {
-        if (!d || !d.url) return null;
-        const rawUrl = d.url;
-        const lower = rawUrl.toLowerCase();
-        const maybePreview =
-          d.preview &&
-          d.preview.images &&
-          d.preview.images[0] &&
-          d.preview.images[0].source &&
-          d.preview.images[0].source.url
-            ? d.preview.images[0].source.url.replace(/&amp;/g, "&")
-            : null;
 
-        // reddit sometimes provides an mp4 preview for GIFs/videos
-        const maybePreviewVideo =
-          (d.preview &&
-          d.preview.reddit_video_preview &&
-          d.preview.reddit_video_preview.fallback_url
-            ? d.preview.reddit_video_preview.fallback_url.replace(/&amp;/g, "&")
-            : null) ||
-          (d.secure_media &&
-          d.secure_media.reddit_video &&
-          d.secure_media.reddit_video.fallback_url
-            ? d.secure_media.reddit_video.fallback_url
-            : null);
+    const cacheKey = redditUrl;
+    if (fetchCache.has(cacheKey)) {
+      return fetchCache.get(cacheKey);
+    }
 
-        const postId = d.id || (d.name ? d.name.replace(/^t3_/, "") : null);
+    const inFlight = (async () => {
+      console.log("fetchPage requesting:", redditUrl);
+      const url = buildProxyUrl(redditUrl);
+      const headers = {};
+      if (redditToken) headers["Authorization"] = `Bearer ${redditToken}`;
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error("Network error");
+      const data = await res.json();
+      const posts = data.data?.children || [];
+      const imgs = posts
+        .map((p) => p.data)
+        .map((d) => {
+          if (!d || !d.url) return null;
+          const rawUrl = d.url;
+          const lower = rawUrl.toLowerCase();
+          const maybePreview =
+            d.preview &&
+            d.preview.images &&
+            d.preview.images[0] &&
+            d.preview.images[0].source &&
+            d.preview.images[0].source.url
+              ? d.preview.images[0].source.url.replace(/&amp;/g, "&")
+              : null;
 
-        if (
-          d.is_video &&
-          d.media &&
-          d.media.reddit_video &&
-          d.media.reddit_video.fallback_url
-        ) {
-          return {
-            type: "video",
-            url: buildProxyUrl(d.media.reddit_video.fallback_url),
-            origUrl: d.media.reddit_video.fallback_url,
-            poster: maybePreview || d.thumbnail || null,
-            title: d.title,
-            permalink: d.permalink,
-            id: postId,
-          };
-        }
+          // reddit sometimes provides an mp4 preview for GIFs/videos
+          const maybePreviewVideo =
+            (d.preview &&
+            d.preview.reddit_video_preview &&
+            d.preview.reddit_video_preview.fallback_url
+              ? d.preview.reddit_video_preview.fallback_url.replace(
+                  /&amp;/g,
+                  "&"
+                )
+              : null) ||
+            (d.secure_media &&
+            d.secure_media.reddit_video &&
+            d.secure_media.reddit_video.fallback_url
+              ? d.secure_media.reddit_video.fallback_url
+              : null);
 
-        if (lower.endsWith(".gifv")) {
-          return {
-            type: "video",
-            url: rawUrl.replace(/\.gifv$/i, ".mp4"),
-            poster: maybePreview || d.thumbnail || null,
-            title: d.title,
-            permalink: d.permalink,
-            id: postId,
-          };
-        }
+          const postId = d.id || (d.name ? d.name.replace(/^t3_/, "") : null);
 
-        // check external resolvers first
-        const externalMp4 = getExternalVideoUrl(rawUrl);
-        if (externalMp4) {
-          return {
-            type: "video",
-            url: buildProxyUrl(externalMp4),
-            origUrl: externalMp4,
-            poster: maybePreview || d.thumbnail || null,
-            title: d.title,
-            permalink: d.permalink,
-            id: postId,
-          };
-        }
+          if (
+            d.is_video &&
+            d.media &&
+            d.media.reddit_video &&
+            d.media.reddit_video.fallback_url
+          ) {
+            return {
+              type: "video",
+              url: buildProxyUrl(d.media.reddit_video.fallback_url),
+              origUrl: d.media.reddit_video.fallback_url,
+              poster: maybePreview || d.thumbnail || null,
+              title: d.title,
+              permalink: d.permalink,
+              id: postId,
+            };
+          }
 
-        if (lower.endsWith(".mp4") || lower.endsWith(".webm")) {
-          return {
-            type: "video",
-            url: buildProxyUrl(rawUrl),
-            origUrl: rawUrl,
-            poster: maybePreview || d.thumbnail || null,
-            title: d.title,
-            permalink: d.permalink,
-            id: postId,
-          };
-        }
+          if (lower.endsWith(".gifv")) {
+            return {
+              type: "video",
+              url: rawUrl.replace(/\.gifv$/i, ".mp4"),
+              poster: maybePreview || d.thumbnail || null,
+              title: d.title,
+              permalink: d.permalink,
+              id: postId,
+            };
+          }
 
-        if (lower.endsWith(".gif")) {
-          return {
-            type: "image",
-            url: rawUrl,
-            title: d.title,
-            permalink: d.permalink,
-            id: postId,
-          };
-        }
+          // check external resolvers first
+          const externalMp4 = getExternalVideoUrl(rawUrl);
+          if (externalMp4) {
+            return {
+              type: "video",
+              url: buildProxyUrl(externalMp4),
+              origUrl: externalMp4,
+              poster: maybePreview || d.thumbnail || null,
+              title: d.title,
+              permalink: d.permalink,
+              id: postId,
+            };
+          }
 
-        if (d.post_hint === "image" || maybePreview) {
-          return {
-            type: "image",
-            url: maybePreview || rawUrl,
-            title: d.title,
-            permalink: d.permalink,
-            id: postId,
-          };
-        }
+          if (lower.endsWith(".mp4") || lower.endsWith(".webm")) {
+            return {
+              type: "video",
+              url: buildProxyUrl(rawUrl),
+              origUrl: rawUrl,
+              poster: maybePreview || d.thumbnail || null,
+              title: d.title,
+              permalink: d.permalink,
+              id: postId,
+            };
+          }
 
-        // fallback: if there's a preview video available, prefer showing it as video
-        if (maybePreviewVideo) {
-          return {
-            type: "video",
-            url: buildProxyUrl(maybePreviewVideo),
-            origUrl: maybePreviewVideo,
-            poster: maybePreview || d.thumbnail || null,
-            title: d.title,
-            permalink: d.permalink,
-            id: postId,
-          };
-        }
+          if (lower.endsWith(".gif")) {
+            return {
+              type: "image",
+              url: rawUrl,
+              title: d.title,
+              permalink: d.permalink,
+              id: postId,
+            };
+          }
 
-        return null;
-      })
-      .filter(Boolean);
+          if (d.post_hint === "image" || maybePreview) {
+            return {
+              type: "image",
+              url: maybePreview || rawUrl,
+              title: d.title,
+              permalink: d.permalink,
+              id: postId,
+            };
+          }
 
-    return { imgs, after: data.data?.after || null };
+          // fallback: if there's a preview video available, prefer showing it as video
+          if (maybePreviewVideo) {
+            return {
+              type: "video",
+              url: buildProxyUrl(maybePreviewVideo),
+              origUrl: maybePreviewVideo,
+              poster: maybePreview || d.thumbnail || null,
+              title: d.title,
+              permalink: d.permalink,
+              id: postId,
+            };
+          }
+
+          return null;
+        })
+        .filter(Boolean);
+
+      return { imgs, after: data.data?.after || null };
+    })();
+
+    fetchCache.set(cacheKey, inFlight);
+    inFlight.finally(() => {
+      setTimeout(() => fetchCache.delete(cacheKey), 2000);
+    });
+
+    return inFlight;
   }
 
   // append next page, avoiding duplicates and seen items
@@ -696,6 +717,8 @@ function App() {
             recentUsers={recentUsers}
             setRecentUsers={setRecentUsers}
             writeRecentUsersCookie={writeRecentUsersCookie}
+            redditClientId={redditClientId}
+            redditClientSecret={redditClientSecret}
             onClose={() => setShowConfig(false)}
             onClearSeen={() => {
               try {
