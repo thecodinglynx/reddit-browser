@@ -11,6 +11,9 @@ export default function ConfigModal({
   recentUsers,
   setRecentUsers,
   writeRecentUsersCookie,
+  recentSubreddits,
+  setRecentSubreddits,
+  writeRecentSubredditsCookie,
   redditToken,
   setRedditToken,
   intervalSec,
@@ -19,6 +22,7 @@ export default function ConfigModal({
   onClearSeen,
 }) {
   const recentSelectRef = React.useRef(null);
+  const recentSubSelectRef = React.useRef(null);
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -84,6 +88,72 @@ export default function ConfigModal({
                 type="search"
                 aria-label="Subreddit"
               />
+              <select
+                aria-label="Recent subreddits"
+                ref={recentSubSelectRef}
+                value={
+                  recentSubreddits && recentSubreddits.includes(subredditInput)
+                    ? subredditInput
+                    : ""
+                }
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v) {
+                    setSubredditInput(v);
+                    if (setSourceType) setSourceType("subreddit");
+                  }
+                }}
+                style={{ marginLeft: 8 }}
+              >
+                <option value="">Recent</option>
+                {recentSubreddits &&
+                  recentSubreddits.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+              </select>
+
+              <button
+                type="button"
+                aria-label="Clear subreddits"
+                title="Clear recent subreddits"
+                className="icon-btn"
+                onClick={() => {
+                  try {
+                    setSubredditInput("");
+                  } catch (e) {}
+                  try {
+                    if (recentSubSelectRef && recentSubSelectRef.current) {
+                      recentSubSelectRef.current.value = "";
+                    }
+                  } catch (e) {}
+                  try {
+                    if (setRecentSubreddits) setRecentSubreddits([]);
+                  } catch (e) {}
+                  try {
+                    if (writeRecentSubredditsCookie)
+                      writeRecentSubredditsCookie([]);
+                  } catch (e) {}
+                  if (setSourceType) setSourceType("subreddit");
+                  try {
+                    if (subredditInputRef && subredditInputRef.current) {
+                      subredditInputRef.current.focus();
+                      subredditInputRef.current.select();
+                    }
+                  } catch (e) {}
+                }}
+                style={{
+                  marginLeft: 6,
+                  background: "none",
+                  border: "none",
+                  padding: 6,
+                  cursor: "pointer",
+                  color: "#666",
+                }}
+              >
+                <i className="fas fa-times-circle" aria-hidden></i>
+              </button>
             </div>
           </div>
 
@@ -111,32 +181,31 @@ export default function ConfigModal({
                 aria-label="User"
               />
 
-              {recentUsers && recentUsers.length > 0 && (
-                <select
-                  aria-label="Recent users"
-                  ref={recentSelectRef}
-                  value={
-                    recentUsers && recentUsers.includes(userInput)
-                      ? userInput
-                      : ""
+              <select
+                aria-label="Recent users"
+                ref={recentSelectRef}
+                value={
+                  recentUsers && recentUsers.includes(userInput)
+                    ? userInput
+                    : ""
+                }
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v) {
+                    setUserInput(v);
+                    if (setSourceType) setSourceType("user");
                   }
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v) {
-                      setUserInput(v);
-                      if (setSourceType) setSourceType("user");
-                    }
-                  }}
-                  style={{ marginLeft: 8 }}
-                >
-                  <option value="">Recent</option>
-                  {recentUsers.map((u) => (
+                }}
+                style={{ marginLeft: 8 }}
+              >
+                <option value="">Recent</option>
+                {recentUsers &&
+                  recentUsers.map((u) => (
                     <option key={u} value={u}>
                       {u}
                     </option>
                   ))}
-                </select>
-              )}
+              </select>
 
               <button
                 type="button"

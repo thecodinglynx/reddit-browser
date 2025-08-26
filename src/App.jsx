@@ -5,7 +5,7 @@ import ProgressBar from "./components/ProgressBar";
 import ConfigModal from "./components/ConfigModal";
 import ImageViewer from "./components/ImageViewer";
 
-const DEFAULT_SUBREDDIT = "EarthPorn";
+const DEFAULT_SUBREDDIT = "Earth";
 const DEFAULT_INTERVAL = 30;
 
 // cookie helpers for persisting interval
@@ -48,6 +48,36 @@ function writeRecentUsersCookie(users) {
     ).toUTCString();
     const payload = encodeURIComponent(JSON.stringify(users));
     document.cookie = `rb_recent_users=${payload}; expires=${expires}; path=/`;
+  } catch (e) {
+    // ignore
+  }
+}
+
+// recent subreddits cookie helpers
+function readRecentSubredditsFromCookie() {
+  try {
+    if (typeof document === "undefined") return [];
+    const match = document.cookie.match("(?:^|; )rb_recent_subs=([^;]*)");
+    if (match && match[1]) {
+      const v = decodeURIComponent(match[1]);
+      const arr = JSON.parse(v);
+      if (Array.isArray(arr)) return arr;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return [];
+}
+
+function writeRecentSubredditsCookie(subs) {
+  try {
+    if (typeof document === "undefined") return;
+    const days = 365 * 2;
+    const expires = new Date(
+      Date.now() + days * 24 * 60 * 60 * 1000
+    ).toUTCString();
+    const payload = encodeURIComponent(JSON.stringify(subs));
+    document.cookie = `rb_recent_subs=${payload}; expires=${expires}; path=/`;
   } catch (e) {
     // ignore
   }
@@ -182,6 +212,18 @@ function App() {
   const [recentUsers, setRecentUsers] = useState(() =>
     readRecentUsersFromCookie()
   );
+  const [recentSubreddits, setRecentSubreddits] = useState(() =>
+    readRecentSubredditsFromCookie()
+  );
+
+  useEffect(() => {
+    try {
+      console.log(
+        "initial recentSubreddits:",
+        readRecentSubredditsFromCookie()
+      );
+    } catch (e) {}
+  }, []);
   const [intervalSec, setIntervalSec] = useState(() =>
     readIntervalFromCookie()
   );
@@ -269,11 +311,25 @@ function App() {
       const uname = String(userInput || subreddit)
         .trim()
         .replace(/^\/?u\//i, "");
+      // skip obviously invalid usernames (empty or 1 char)
+      if (!uname || uname.length <= 1) {
+        console.log("fetchPage: skipping fetch for invalid user:", uname);
+        return { imgs: [], after: null };
+      }
       redditUrl = `https://www.reddit.com/user/${encodeURIComponent(
         uname
       )}/submitted.json?limit=25${afterPart}`;
     } else {
-      redditUrl = `https://www.reddit.com/r/${subreddit}/hot.json?limit=25${afterPart}`;
+      // subreddit: ensure we have a valid subreddit (not empty or single char)
+      const subCheck = normalizeSubreddit(subreddit || subredditInput || "");
+      if (!subCheck || subCheck.length <= 1) {
+        console.log(
+          "fetchPage: skipping fetch for invalid subreddit:",
+          subCheck
+        );
+        return { imgs: [], after: null };
+      }
+      redditUrl = `https://www.reddit.com/r/${subCheck}/hot.json?limit=25${afterPart}`;
     }
 
     const cacheKey = redditUrl;
@@ -471,6 +527,31 @@ function App() {
             }, MIN_ADVANCE_MS);
           }
         }
+        // if we fetched a subreddit and got results, persist the subreddit to recent subs list
+        if (sourceType === "subreddit") {
+          try {
+            // prefer the user-visible subredditInput (preserve case), fallback to subreddit
+            const raw =
+              (subredditInput && String(subredditInput).trim()) ||
+              (subreddit && String(subreddit).trim()) ||
+              "";
+            // strip leading r/ if present but keep original casing
+            const sub = raw.replace(/^\/?r\//i, "");
+            if (filtered.length > 0 && sub) {
+              setRecentSubreddits((prev) => {
+                const next = [sub, ...prev.filter((p) => p !== sub)].slice(
+                  0,
+                  10
+                );
+                try {
+                  console.log("persist recentSubreddits ->", next);
+                  writeRecentSubredditsCookie(next);
+                } catch (e) {}
+                return next;
+              });
+            }
+          } catch (e) {}
+        }
         if (appended) {
           anyAppended = true;
           break;
@@ -513,6 +594,29 @@ function App() {
                 );
                 try {
                   writeRecentUsersCookie(next);
+                } catch (e) {}
+                return next;
+              });
+            }
+          } catch (e) {}
+        }
+        // if we fetched a subreddit during the initial fetch and got results, persist it
+        if (sourceType === "subreddit") {
+          try {
+            const raw =
+              (subredditInput && String(subredditInput).trim()) ||
+              (subreddit && String(subreddit).trim()) ||
+              "";
+            const sub = raw.replace(/^\/?r\//i, "");
+            if (filtered.length > 0 && sub) {
+              setRecentSubreddits((prev) => {
+                const next = [sub, ...prev.filter((p) => p !== sub)].slice(
+                  0,
+                  10
+                );
+                try {
+                  console.log("persist recentSubreddits (init) ->", next);
+                  writeRecentSubredditsCookie(next);
                 } catch (e) {}
                 return next;
               });
@@ -709,6 +813,9 @@ function App() {
             recentUsers={recentUsers}
             setRecentUsers={setRecentUsers}
             writeRecentUsersCookie={writeRecentUsersCookie}
+            recentSubreddits={recentSubreddits}
+            setRecentSubreddits={setRecentSubreddits}
+            writeRecentSubredditsCookie={writeRecentSubredditsCookie}
             onClose={() => setShowConfig(false)}
             onClearSeen={() => {
               try {
