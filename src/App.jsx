@@ -294,9 +294,9 @@ function App() {
         .replace(/^\/?u\//i, "");
       redditUrl = `https://www.reddit.com/user/${encodeURIComponent(
         uname
-      )}/submitted.json?limit=50${afterPart}`;
+      )}/submitted.json?limit=25${afterPart}`;
     } else {
-      redditUrl = `https://www.reddit.com/r/${subreddit}/hot.json?limit=50${afterPart}`;
+      redditUrl = `https://www.reddit.com/r/${subreddit}/hot.json?limit=25${afterPart}`;
     }
 
     const cacheKey = redditUrl;

@@ -51,11 +51,23 @@ export default async function handler(req, res) {
       return;
     }
 
-    // forward Authorization header if present
+    // forward Authorization header if present and ensure we send a sensible User-Agent
+    // Reddit rejects some requests without a proper User-Agent header; prefer the client's UA
     const forwardHeaders = {};
     if (req.headers && req.headers.authorization) {
       forwardHeaders["Authorization"] = req.headers.authorization;
     }
+    // Use the incoming request's User-Agent when available, otherwise a descriptive fallback
+    try {
+      forwardHeaders["User-Agent"] =
+        (req.headers && req.headers["user-agent"]) ||
+        "reddit-browser/1.0 (by reddit-browser-app)";
+    } catch (e) {}
+    // provide a permissive Accept header if the client didn't set one
+    try {
+      forwardHeaders["Accept"] =
+        (req.headers && req.headers["accept"]) || "*/*";
+    } catch (e) {}
 
     // If no Authorization was provided by the client, and the server has
     // Reddit credentials in env, obtain an app-only token and attach it.
