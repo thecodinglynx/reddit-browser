@@ -158,19 +158,41 @@ export default async function handler(req, res) {
 
     const r = await fetch(target, { headers: forwardHeaders });
 
-    // if remote returned non-OK, attempt to capture a short snippet for logs
+    // if remote returned non-OK, capture a short snippet and headers for logs
     if (!r.ok) {
       try {
         const txt = await r
           .clone()
           .text()
           .catch(() => "");
+        // collect response headers into an array for structured logs
+        let headersArray = [];
+        try {
+          headersArray = Array.from(r.headers.entries());
+        } catch (e) {
+          // ignore header collection errors
+        }
         console.warn("proxy remote non-ok", {
           status: r.status,
+          headers: headersArray,
           snippet: txt.slice(0, 2000),
         });
+
+        // helpful debugging: when ?debug=1 is present, return the remote snippet
+        // directly so we can inspect the HTML/body from the deployed function.
+        if (
+          req.query &&
+          (req.query.debug === "1" || req.query.debug === "true")
+        ) {
+          res.statusCode = r.status;
+          // return plain text so curl/clients can read the snippet easily
+          res.setHeader("content-type", "text/plain; charset=utf-8");
+          const out = `REMOTE_STATUS: ${r.status}\n\n${txt.slice(0, 5000)}`;
+          res.end(out);
+          return;
+        }
       } catch (e) {
-        // ignore logging errors
+        // ignore logging/errors during diagnostics
       }
     }
 
