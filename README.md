@@ -38,10 +38,6 @@ npm run preview
 
 ## Configuration and secrets
 
-- `public/config.json` (optional): the app can load runtime configuration from `/config.json` in the `public/` folder. Example keys previously used were `redditClientId` and `redditClientSecret`.
-- **IMPORTANT SECURITY NOTE:** Anything placed in `public/` is served publicly. Do **NOT** store real client secrets in `public/config.json` for production; it will be accessible to anyone.
-- This repo includes a `.gitignore` entry for `/public/config.json` so you can keep a local copy without committing it.
-
 ## Safer alternative (recommended)
 
 - Store secrets on a server or serverless function and proxy Reddit requests. The server keeps client id/secret in environment variables and exchanges them for OAuth tokens. The frontend then calls your server's endpoint (e.g. `/api/reddit/:subreddit/hot`) instead of calling Reddit directly.

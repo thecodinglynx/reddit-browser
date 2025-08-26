@@ -194,8 +194,7 @@ function App() {
     }
   });
   const [loading, setLoading] = useState(false);
-  const [redditClientId, setRedditClientId] = useState("");
-  const [redditClientSecret, setRedditClientSecret] = useState("");
+
   const [images, setImages] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -256,28 +255,6 @@ function App() {
   useEffect(() => {
     writeIntervalCookie(intervalSec);
   }, [intervalSec]);
-
-  // load runtime config from public/config.json (if present)
-  useEffect(() => {
-    let cancelled = false;
-    async function loadConfig() {
-      try {
-        const res = await fetch("/config.json");
-        if (!res.ok) return;
-        const cfg = await res.json();
-        if (cancelled) return;
-        if (cfg.redditClientId) setRedditClientId(cfg.redditClientId);
-        if (cfg.redditClientSecret)
-          setRedditClientSecret(cfg.redditClientSecret);
-      } catch (e) {
-        // ignore
-      }
-    }
-    loadConfig();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const [afterToken, setAfterToken] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -717,8 +694,6 @@ function App() {
             recentUsers={recentUsers}
             setRecentUsers={setRecentUsers}
             writeRecentUsersCookie={writeRecentUsersCookie}
-            redditClientId={redditClientId}
-            redditClientSecret={redditClientSecret}
             onClose={() => setShowConfig(false)}
             onClearSeen={() => {
               try {
