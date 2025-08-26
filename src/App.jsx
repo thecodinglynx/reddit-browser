@@ -236,6 +236,7 @@ function App() {
     }
   });
   const [loading, setLoading] = useState(false);
+  const [paused, setPaused] = useState(false);
 
   const [images, setImages] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -378,6 +379,7 @@ function App() {
               : null);
 
           const postId = d.id || (d.name ? d.name.replace(/^t3_/, "") : null);
+          const author = d.author || "";
 
           if (
             d.is_video &&
@@ -392,6 +394,7 @@ function App() {
               poster: maybePreview || d.thumbnail || null,
               title: d.title,
               permalink: d.permalink,
+              author,
               id: postId,
             };
           }
@@ -403,6 +406,7 @@ function App() {
               poster: maybePreview || d.thumbnail || null,
               title: d.title,
               permalink: d.permalink,
+              author,
               id: postId,
             };
           }
@@ -417,6 +421,7 @@ function App() {
               poster: maybePreview || d.thumbnail || null,
               title: d.title,
               permalink: d.permalink,
+              author,
               id: postId,
             };
           }
@@ -429,6 +434,7 @@ function App() {
               poster: maybePreview || d.thumbnail || null,
               title: d.title,
               permalink: d.permalink,
+              author,
               id: postId,
             };
           }
@@ -439,6 +445,7 @@ function App() {
               url: rawUrl,
               title: d.title,
               permalink: d.permalink,
+              author,
               id: postId,
             };
           }
@@ -449,6 +456,7 @@ function App() {
               url: maybePreview || rawUrl,
               title: d.title,
               permalink: d.permalink,
+              author,
               id: postId,
             };
           }
@@ -462,6 +470,7 @@ function App() {
               poster: maybePreview || d.thumbnail || null,
               title: d.title,
               permalink: d.permalink,
+              author,
               id: postId,
             };
           }
@@ -638,6 +647,9 @@ function App() {
 
   // Image cycling effect with pagination-aware advance
   useEffect(() => {
+    // always clear any existing timer first (so pausing stops progress)
+    clearInterval(timerRef.current);
+
     if (images.length === 0) return;
 
     // avoid resetting currentIdx when images are appended via loadMore
@@ -645,9 +657,13 @@ function App() {
     // if this is an initial load (prev 0 -> now >0) or the list shrank (new search), reset index
     if ((prevLen === 0 && images.length > 0) || images.length < prevLen) {
       setCurrentIdx(0);
+      setProgress(0);
     }
-    setProgress(0);
-    clearInterval(timerRef.current);
+    // if paused, don't create a new interval (we've already cleared it above)
+    if (paused) {
+      prevImagesLenRef.current = images.length;
+      return () => {};
+    }
     const intervalMs = 100;
 
     function advanceIndex() {
@@ -672,7 +688,7 @@ function App() {
     }, intervalMs);
     prevImagesLenRef.current = images.length;
     return () => clearInterval(timerRef.current);
-  }, [images, intervalSec]);
+  }, [images, intervalSec, paused]);
 
   // navigation handlers used by ImageViewer and auto-advance
   function handleNext() {
@@ -840,6 +856,8 @@ function App() {
             currentIdx={currentIdx}
             onNext={handleNext}
             onPrev={handlePrev}
+            paused={paused}
+            onTogglePaused={() => setPaused((v) => !v)}
           />
         )}
         {!loading && hasFetched && (images.length === 0 || fetchError) && (

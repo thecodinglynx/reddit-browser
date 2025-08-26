@@ -1,8 +1,27 @@
 import React, { useEffect, useRef, useState } from "react";
 
-export default function ImageViewer({ images, currentIdx, onNext, onPrev }) {
+export default function ImageViewer({
+  images,
+  currentIdx,
+  onNext,
+  onPrev,
+  paused,
+  onTogglePaused,
+}) {
   const current = images[currentIdx];
   if (!current) return null;
+
+  // normalize author for display; show 'unknown' when missing or deleted
+  const rawAuthor = current.author || "";
+  let displayAuthor = "unknown";
+  try {
+    const a = String(rawAuthor).trim();
+    if (a && a !== "[deleted]" && a.toLowerCase() !== "null") {
+      displayAuthor = a.startsWith("u/") ? a : `u/${a}`;
+    }
+  } catch (e) {
+    displayAuthor = "unknown";
+  }
 
   const videoRef = useRef(null);
   const [playing, setPlaying] = useState(true);
@@ -94,12 +113,13 @@ export default function ImageViewer({ images, currentIdx, onNext, onPrev }) {
           className="nav-row"
           style={{
             position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 18,
+            left: 12,
+            right: 12,
+            bottom: 12,
             display: "flex",
-            justifyContent: "center",
-            gap: "32px",
+            justifyContent: "flex-start",
+            gap: "8px",
+            alignItems: "center",
           }}
         >
           <button
@@ -109,11 +129,27 @@ export default function ImageViewer({ images, currentIdx, onNext, onPrev }) {
             onClick={() => {
               if (onPrev) onPrev();
             }}
-            style={{ fontSize: "1.5em", padding: "8px 24px" }}
+            style={{ fontSize: "1.2em", padding: "6px 10px" }}
             disabled={images.length === 0}
           >
             <i className="fa-solid fa-chevron-left"></i>
           </button>
+
+          {/* pause/play center button */}
+          <button
+            type="button"
+            className="nav-btn"
+            aria-label={paused ? "Resume" : "Pause"}
+            onClick={() => {
+              if (onTogglePaused) onTogglePaused();
+            }}
+            style={{ fontSize: "1.1em", padding: "6px 10px" }}
+          >
+            <i
+              className={paused ? "fa-solid fa-play" : "fa-solid fa-pause"}
+            ></i>
+          </button>
+
           <button
             type="button"
             className="nav-btn"
@@ -121,11 +157,31 @@ export default function ImageViewer({ images, currentIdx, onNext, onPrev }) {
             onClick={() => {
               if (onNext) onNext();
             }}
-            style={{ fontSize: "1.5em", padding: "8px 24px" }}
+            style={{ fontSize: "1.2em", padding: "6px 10px" }}
             disabled={images.length === 0}
           >
             <i className="fa-solid fa-chevron-right"></i>
           </button>
+          {/* uploader badge bottom-right (visually aligned with nav buttons) */}
+          <div
+            style={{
+              position: "absolute",
+              right: 12,
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "#fff",
+              color: "#000",
+              padding: "6px 8px",
+              borderRadius: 6,
+              fontSize: "0.9em",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+              display: "inline-block",
+              zIndex: 9999,
+              pointerEvents: "none",
+            }}
+          >
+            {displayAuthor}
+          </div>
         </div>
 
         {/* playback controls for videos */}
