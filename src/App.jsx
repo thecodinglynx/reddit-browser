@@ -367,6 +367,37 @@ function App() {
         .map((d) => {
           if (!d || !d.url) return null;
           const rawUrl = d.url;
+          // derive a display-ready subreddit string (prefer prefixed form)
+          let subredditDisplay =
+            d.subreddit_name_prefixed ||
+            (d.subreddit ? `r/${d.subreddit}` : null);
+          // fallback: try to parse subreddit from permalink when the above are absent
+          if (!subredditDisplay && d.permalink) {
+            try {
+              const m = String(d.permalink).match(/\/r\/([^/\s]+)/i);
+              if (m && m[1]) subredditDisplay = `r/${m[1]}`;
+            } catch (e) {
+              /* ignore */
+            }
+          }
+          // sanitize: ensure we have an r/ value, not an accidental u/ (some malformed responses)
+          try {
+            if (subredditDisplay) {
+              const mm = String(subredditDisplay)
+                .trim()
+                .match(/^\/?([ru])\/?(.+)$/i);
+              if (mm) {
+                const prefix = mm[1].toLowerCase();
+                const name = mm[2];
+                if (prefix === "r") subredditDisplay = `r/${name}`;
+                else subredditDisplay = null; // drop user-style values
+              } else {
+                subredditDisplay = null;
+              }
+            }
+          } catch (e) {
+            subredditDisplay = null;
+          }
           const lower = rawUrl.toLowerCase();
           const maybePreview =
             d.preview &&
@@ -410,6 +441,7 @@ function App() {
               title: d.title,
               permalink: d.permalink,
               author,
+              subreddit: subredditDisplay,
               id: postId,
             };
           }
@@ -422,6 +454,7 @@ function App() {
               title: d.title,
               permalink: d.permalink,
               author,
+              subreddit: subredditDisplay,
               id: postId,
             };
           }
@@ -437,6 +470,7 @@ function App() {
               title: d.title,
               permalink: d.permalink,
               author,
+              subreddit: subredditDisplay,
               id: postId,
             };
           }
@@ -450,6 +484,7 @@ function App() {
               title: d.title,
               permalink: d.permalink,
               author,
+              subreddit: subredditDisplay,
               id: postId,
             };
           }
@@ -461,6 +496,7 @@ function App() {
               title: d.title,
               permalink: d.permalink,
               author,
+              subreddit: subredditDisplay,
               id: postId,
             };
           }
@@ -472,6 +508,7 @@ function App() {
               title: d.title,
               permalink: d.permalink,
               author,
+              subreddit: subredditDisplay,
               id: postId,
             };
           }
@@ -486,6 +523,7 @@ function App() {
               title: d.title,
               permalink: d.permalink,
               author,
+              subreddit: subredditDisplay,
               id: postId,
             };
           }
@@ -873,6 +911,7 @@ function App() {
             onPrev={handlePrev}
             paused={paused}
             onTogglePaused={() => setPaused((v) => !v)}
+            activeSource={sourceType}
             onAuthorClick={(raw) => {
               try {
                 const uname = String(raw || "")
@@ -891,6 +930,27 @@ function App() {
                   } catch (e) {}
                   // show confirmation toast
                   showToast(`Added ${uname} to recent users`);
+                  return next;
+                });
+              } catch (e) {}
+            }}
+            onSubredditClick={(rawSub) => {
+              try {
+                const s = String(rawSub || "")
+                  .trim()
+                  .replace(/^\/?r\//i, "");
+                if (!s) return;
+                // only add if not already present (preserve original casing from input)
+                setRecentSubreddits((prev) => {
+                  if (prev && prev.includes(s)) return prev;
+                  const next = [s, ...(Array.isArray(prev) ? prev : [])].slice(
+                    0,
+                    10
+                  );
+                  try {
+                    writeRecentSubredditsCookie(next);
+                  } catch (e) {}
+                  showToast(`Added r/${s} to recent subreddits`);
                   return next;
                 });
               } catch (e) {}

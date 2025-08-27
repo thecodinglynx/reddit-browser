@@ -8,6 +8,8 @@ export default function ImageViewer({
   paused,
   onTogglePaused,
   onAuthorClick,
+  onSubredditClick,
+  activeSource,
 }) {
   const current = images[currentIdx];
   if (!current) return null;
@@ -164,25 +166,8 @@ export default function ImageViewer({
             <i className="fa-solid fa-chevron-right"></i>
           </button>
           {/* uploader badge bottom-right (visually aligned with nav buttons) */}
-          {/** uploader badge — clickable to add to recent users **/}
+          {/** uploader badge — subreddit above author; subreddit clickable to add recent subs **/}
           <div
-            role={onAuthorClick ? "button" : undefined}
-            onClick={() => {
-              if (!onAuthorClick) return;
-              // pass raw author (without u/ prefix) to parent
-              try {
-                const a = String(rawAuthor || "").trim();
-                const uname = a.replace(/^\/?:?u\//i, "");
-                if (
-                  uname &&
-                  uname !== "[deleted]" &&
-                  uname.toLowerCase() !== "null"
-                ) {
-                  onAuthorClick(uname);
-                }
-              } catch (e) {}
-            }}
-            title={displayAuthor === "unknown" ? "" : "Add to recent users"}
             style={{
               position: "absolute",
               right: 12,
@@ -194,13 +179,87 @@ export default function ImageViewer({
               borderRadius: 6,
               fontSize: "0.9em",
               boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
-              display: "inline-block",
+              display: "inline-flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
               zIndex: 9999,
               pointerEvents: displayAuthor === "unknown" ? "none" : "auto",
-              cursor: displayAuthor === "unknown" ? "default" : "pointer",
+              cursor: displayAuthor === "unknown" ? "default" : "default",
+              maxWidth: 260,
             }}
           >
-            {displayAuthor}
+            {/** compute which side is active for bolding */}
+            {(() => {
+              const isUserActive = activeSource === "user";
+              const isSubActive = activeSource === "subreddit";
+              return (
+                <>
+                  {current.subreddit ? (
+                    <div
+                      role={onSubredditClick ? "button" : undefined}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!onSubredditClick) return;
+                        try {
+                          const s = String(current.subreddit || "").trim();
+                          const norm = s.replace(/^\/?r\//i, "");
+                          if (norm) onSubredditClick(norm);
+                        } catch (err) {}
+                      }}
+                      title={current.subreddit}
+                      style={{
+                        fontSize: "0.95em",
+                        color: "#000",
+                        marginBottom: 4,
+                        cursor: onSubredditClick ? "pointer" : "default",
+                        userSelect: "none",
+                        fontWeight: isSubActive ? 700 : 400,
+                        textAlign: "left",
+                        lineHeight: "1.1",
+                      }}
+                    >
+                      {current.subreddit}
+                    </div>
+                  ) : null}
+
+                  <div
+                    role={onAuthorClick ? "button" : undefined}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!onAuthorClick) return;
+                      // pass raw author (without u/ prefix) to parent
+                      try {
+                        const a = String(rawAuthor || "").trim();
+                        const uname = a.replace(/^\/?u\//i, "");
+                        if (
+                          uname &&
+                          uname !== "[deleted]" &&
+                          uname.toLowerCase() !== "null"
+                        ) {
+                          onAuthorClick(uname);
+                        }
+                      } catch (e) {}
+                    }}
+                    title={
+                      displayAuthor === "unknown" ? "" : "Add to recent users"
+                    }
+                    style={{
+                      fontWeight: isUserActive ? 700 : 400,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      cursor: onAuthorClick ? "pointer" : "default",
+                      color: "#000",
+                      textAlign: "left",
+                      fontSize: "0.95em",
+                      lineHeight: "1.1",
+                    }}
+                  >
+                    {displayAuthor}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
 
