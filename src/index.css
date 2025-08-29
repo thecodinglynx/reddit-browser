@@ -6,6 +6,8 @@
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
+  /* header background used by the progress/timer row */
+  --header-bg: linear-gradient(180deg, #1f9275 0%, #f6f8fb 100%);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
