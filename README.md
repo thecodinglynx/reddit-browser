@@ -15,15 +15,32 @@ A small Progressive Web App (React + Vite) that fetches images and animated medi
 
 1. Install dependencies:
 
+````powershell
+# Reddit Browser
+
+A small Progressive Web App (React + Vite) that fetches images and animated media from a subreddit and cycles through them on a configurable interval.
+
+## Features
+
+- Shows images, animated GIFs and Reddit-hosted videos (v.redd.it / gifv -> mp4 / mp4 / webm).
+- Automatic slideshow with configurable interval and a fluid progress bar.
+- Manual forward/back controls.
+- Settings modal for subreddit and interval.
+- Optional: paste a Reddit OAuth access token (Bearer) to increase rate limits.
+- Mobile-friendly responsive layout and PWA-ready manifest/service worker (when present).
+
+## Quick start (development)
+
+1. Install dependencies:
+
 ```powershell
 cd <repo-root>
 npm install
-```
+````
 
 2. Start dev server:
 
 ```powershell
-cd <repo-root>
 npm run dev
 ```
 
@@ -46,11 +63,67 @@ npm run build
 npm run preview
 ```
 
+## Deploying to Firebase
+
+This project uses Firebase Hosting with a rewrite that forwards `/api/**` to a Cloud Function named `proxy`. Follow these steps to deploy or update the app on Firebase.
+
+Prerequisites
+
+- Install the Firebase CLI and log in:
+
+```powershell
+npm install -g firebase-tools
+firebase login
+```
+
+- Select or create a Firebase project. Note the project ID (example: `redslide-7c299`).
+
+1. Build the frontend assets
+
+```powershell
+npm run build
+```
+
+2. (Optional) Set Reddit credentials in functions config
+
+If you use the server-side Reddit token flow, store credentials in Firebase functions config. Use single quotes to avoid PowerShell expansion of `$`:
+
+```powershell
+npx firebase functions:config:set `
+	reddit.client_id='YOUR_CLIENT_ID' `
+	reddit.client_secret='YOUR_CLIENT_SECRET' `
+	reddit.username='SERVICE_USERNAME' `
+	reddit.password='SERVICE_PASSWORD' `
+	--project your-project-id
+```
+
+Note: For production, consider using Secret Manager instead of `functions.config()` for sensitive values.
+
+3. Deploy hosting and functions
+
+```powershell
+npx firebase deploy --only hosting,functions --project your-project-id
+```
+
+4. Test the hosted site and proxy
+
+- Hosted site: `https://<your-project-id>.web.app` or `https://<your-project-id>.firebaseapp.com`
+- Test proxy (debug mode shows token `/api/v1/me` logs):
+
+```powershell
+curl.exe "https://<your-project-id>.web.app/api/proxy?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Fjokes%2Ftop.json%3Flimit%3D1&debug=1" -i
+```
+
+Check function logs if debugging is needed:
+
+```powershell
+npx firebase functions:log --only proxy --project your-project-id
+```
+
 ## Configuration and secrets
 
-## Safer alternative (recommended)
-
-- Store secrets on a server or serverless function and proxy Reddit requests. The server keeps client id/secret in environment variables and exchanges them for OAuth tokens. The frontend then calls your server's endpoint (e.g. `/api/reddit/:subreddit/hot`) instead of calling Reddit directly.
+- `functions/config()` is used in the Cloud Function to read `reddit.client_id`, `reddit.client_secret`, `reddit.username`, and `reddit.password` when present.
+- For stronger security, use Google Cloud Secret Manager and reference secrets from Cloud Functions.
 
 ## Optional access token
 
@@ -64,20 +137,23 @@ npm run preview
 
 ## Troubleshooting
 
-- If images don't load due to CORS, the project currently uses a CORS proxy for development. For reliable production usage, use a server proxy or host properly.
-- If videos do not autoplay on mobile, user agent/autoplay policies may prevent it; videos are muted and use `playsInline` to improve compatibility.
+- If you get a 403 from Reddit in production:
+
+  - Confirm the Reddit `script` app and service account are valid (no 2FA, not suspended).
+  - Verify credentials by requesting a token locally (see README earlier steps).
+  - If token requests work locally but 403 occurs in Cloud Functions, try redeploying or use a different service account; sometimes IP-based blocks affect hosted environments.
+
+- If images don't load due to CORS, the project uses a server proxy for production.
 
 ## Development notes
 
 - The main app source is `src/App.jsx` and styles are in `src/App.css`.
-- The app uses Font Awesome icons via the included CSS import.
+- The proxy Cloud Function is in `functions/index.js`.
 
 ## Contributing
 
-- Feel free to open issues or PRs. Keep secrets out of commits. Use `public/config.example.json` or environment variables for examples.
+- Feel free to open issues or PRs. Keep secrets out of commits.
 
 ## License
 
 - MIT
-
-If you want, I can scaffold a tiny server proxy (Express server) and update the frontend to call it. Which would you prefer?
