@@ -23,6 +23,33 @@ const ALLOWED = new Set([
 
 exports.proxy = functions.https.onRequest(async (req, res) => {
   try {
+    // support server-side password check: /api/proxy?_action=check_password
+    if (req.query && req.query._action === "check_password") {
+      // prefer functions.config().app.password in production
+      let expected = null;
+      try {
+        const cfg = functions.config && functions.config().app;
+        if (cfg && cfg.password) expected = cfg.password;
+      } catch (e) {}
+      if (!expected) expected = process.env.APP_PASSWORD || null;
+      const provided = req.headers["x-app-password"] || null;
+      if (!expected) {
+        res
+          .status(501)
+          .send({
+            success: false,
+            message: "APP password not configured on server",
+          });
+        return;
+      }
+      if (provided === expected) {
+        res.status(200).send({ success: true });
+        return;
+      }
+      res.status(403).send({ success: false, message: "invalid password" });
+      return;
+    }
+    // reCAPTCHA verification removed
     const raw = req.query.url || req.query.u;
     if (!raw) {
       res.status(400).send("Missing url parameter\n");

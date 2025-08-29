@@ -135,16 +135,12 @@
     background: #92c2cd;
   }
   .error-image {
-    width: 60vw;
-    max-width: 240px;
-    height: auto;
-    margin: 0 auto 12px auto;
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto 6px auto;
   }
-}
-
-/* Ensure full-bleed on narrow portrait phones (remove left/right gutter) */
-@media (max-width: 500px) and (orientation: portrait) {
-  html,
   body,
   #root {
     width: 100vw !important;
@@ -466,6 +462,50 @@
    Use a high z-index so they appear above images which may have low z-index. */
 .image-viewer .image-wrap {
   position: relative;
+}
+
+/* human verification CSS removed */
+.pw-overlay {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+}
+.pw-box {
+  background: white;
+  padding: 20px 22px;
+  border-radius: 8px;
+  width: 320px;
+  max-width: calc(100% - 32px);
+  text-align: center;
+}
+.pw-image {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 1px auto;
+}
+.pw-box input[type="password"] {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  box-sizing: border-box;
+}
+.primary-btn {
+  background: #2b6cb0;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
 }
 .image-viewer .image-wrap .nav-row {
   position: absolute;

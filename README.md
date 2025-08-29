@@ -116,8 +116,9 @@ curl.exe "https://<your-project-id>.web.app/api/proxy?url=https%3A%2F%2Fwww.redd
 
 Check function logs if debugging is needed:
 
-```powershell
+````powershell
 npx firebase functions:log --only proxy --project your-project-id
+
 ```
 
 ## Configuration and secrets
@@ -157,3 +158,5 @@ npx firebase functions:log --only proxy --project your-project-id
 ## License
 
 - MIT
+```
+````

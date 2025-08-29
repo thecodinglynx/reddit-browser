@@ -1,6 +1,50 @@
 // Simple proxy for Vercel serverless functions
 // Usage: /api/proxy?url=<encoded target url>
 export default async function handler(req, res) {
+  // Load local .env into process.env when running the dev proxy (no deps)
+  try {
+    // support a simple password check for app unlock: /api/proxy?_action=check_password
+    if (req.query && req.query._action === "check_password") {
+      const provided = req.headers["x-app-password"] || null;
+      const expected = process.env.APP_PASSWORD || null;
+      if (!expected) {
+        res.statusCode = 501;
+        res.setHeader("content-type", "application/json; charset=utf-8");
+        res.end(
+          JSON.stringify({
+            success: false,
+            message: "APP_PASSWORD not configured on server",
+          })
+        );
+        return;
+      }
+      if (provided === expected) {
+        res.setHeader("content-type", "application/json; charset=utf-8");
+        res.end(JSON.stringify({ success: true }));
+        return;
+      }
+      res.statusCode = 403;
+      res.setHeader("content-type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({ success: false, message: "invalid password" }));
+      return;
+    }
+    const fs = await import("fs");
+    const path = await import("path");
+    const envPath = path.resolve(process.cwd(), ".env");
+    if (fs.existsSync(envPath)) {
+      const raw = fs.readFileSync(envPath, "utf8");
+      raw.split(/\r?\n/).forEach((line) => {
+        const m = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*(.*)\s*$/);
+        if (m) {
+          let val = m[2];
+          if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
+          process.env[m[1]] = process.env[m[1]] || val;
+        }
+      });
+    }
+  } catch (e) {
+    /* ignore */
+  }
   try {
     const raw = req.query.url || req.query.u;
     if (!raw) {

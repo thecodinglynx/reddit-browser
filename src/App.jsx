@@ -228,6 +228,16 @@ function App() {
     readIntervalFromCookie()
   );
   const [showConfig, setShowConfig] = useState(false);
+  // simple session-backed password lock: app locked until correct password entered
+  const [unlocked, setUnlocked] = useState(() => {
+    try {
+      return sessionStorage.getItem("rb_unlocked") === "1";
+    } catch (e) {
+      return false;
+    }
+  });
+  const [passwordInput, setPasswordInput] = useState("");
+  // removed reCAPTCHA humanVerified gating
   const [redditToken, setRedditToken] = useState(() => {
     try {
       return localStorage.getItem("redditToken") || "";
@@ -299,6 +309,8 @@ function App() {
     return () => clearTimeout(handler);
   }, [sourceType, userInput]);
 
+  // reCAPTCHA gating removed
+
   // persist reddit token to localStorage
   useEffect(() => {
     try {
@@ -358,6 +370,7 @@ function App() {
       const url = buildProxyUrl(redditUrl);
       const headers = {};
       if (redditToken) headers["Authorization"] = `Bearer ${redditToken}`;
+      // reCAPTCHA client integration removed; only forward Authorization when present
       const res = await fetch(url, { headers });
       if (!res.ok) throw new Error("Network error");
       const data = await res.json();
@@ -628,6 +641,7 @@ function App() {
 
   // initial fetch (reset pagination)
   useEffect(() => {
+    if (!unlocked) return; // don't fetch until user unlocks the app
     let cancelled = false;
     async function init() {
       setLoading(true);
@@ -696,7 +710,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [subreddit, fetchTrigger, redditToken]);
+  }, [subreddit, fetchTrigger, redditToken, unlocked]);
 
   // Image cycling effect with pagination-aware advance
   useEffect(() => {
@@ -864,137 +878,214 @@ function App() {
 
   return (
     <>
-      <div className={`reddit-browser ${errorActive ? "error" : ""}`}>
-        {/* Modal for config */}
-        {showConfig && (
-          <ConfigModal
-            subredditInputRef={subredditInputRef}
-            subredditInput={subredditInput}
-            setSubredditInput={setSubredditInput}
-            sourceType={sourceType}
-            setSourceType={setSourceType}
-            userInput={userInput}
-            setUserInput={setUserInput}
-            redditToken={redditToken}
-            setRedditToken={setRedditToken}
-            intervalSec={intervalSec}
-            setIntervalSec={setIntervalSec}
-            recentUsers={recentUsers}
-            setRecentUsers={setRecentUsers}
-            writeRecentUsersCookie={writeRecentUsersCookie}
-            recentSubreddits={recentSubreddits}
-            setRecentSubreddits={setRecentSubreddits}
-            writeRecentSubredditsCookie={writeRecentSubredditsCookie}
-            onClose={() => setShowConfig(false)}
-            onClearSeen={() => {
-              try {
-                localStorage.removeItem("seenPosts");
-              } catch (e) {}
-              setSeen(new Set());
-              // bump trigger to force refetch and repopulate images
-              setFetchTrigger((v) => v + 1);
-            }}
-          />
-        )}
-
-        <ProgressBar
-          progress={progress}
-          intervalSec={intervalSec}
-          onToggleConfig={() => setShowConfig((v) => !v)}
-        />
-
-        {!loading && !fetchError && images.length > 0 && images[currentIdx] && (
-          <ImageViewer
-            images={images}
-            currentIdx={currentIdx}
-            onNext={handleNext}
-            onPrev={handlePrev}
-            paused={paused}
-            onTogglePaused={() => setPaused((v) => !v)}
-            activeSource={sourceType}
-            onAuthorClick={(raw) => {
-              try {
-                const uname = String(raw || "")
-                  .trim()
-                  .replace(/^\/?u\//i, "");
-                if (!uname) return;
-                // only add if not already present
-                setRecentUsers((prev) => {
-                  if (prev && prev.includes(uname)) return prev;
-                  const next = [
-                    uname,
-                    ...(Array.isArray(prev) ? prev : []),
-                  ].slice(0, 10);
-                  try {
-                    writeRecentUsersCookie(next);
-                  } catch (e) {}
-                  // show confirmation toast
-                  showToast(`Added ${uname} to recent users`);
-                  return next;
-                });
-              } catch (e) {}
-            }}
-            onSubredditClick={(rawSub) => {
-              try {
-                const s = String(rawSub || "")
-                  .trim()
-                  .replace(/^\/?r\//i, "");
-                if (!s) return;
-                // only add if not already present (preserve original casing from input)
-                setRecentSubreddits((prev) => {
-                  if (prev && prev.includes(s)) return prev;
-                  const next = [s, ...(Array.isArray(prev) ? prev : [])].slice(
-                    0,
-                    10
-                  );
-                  try {
-                    writeRecentSubredditsCookie(next);
-                  } catch (e) {}
-                  showToast(`Added r/${s} to recent subreddits`);
-                  return next;
-                });
-              } catch (e) {}
-            }}
-          />
-        )}
-        {/* small toast */}
-        {toast && (
-          <div
-            className="toast"
-            style={{
-              position: "fixed",
-              right: 16,
-              bottom: 16,
-              background: "rgba(0,0,0,0.8)",
-              color: "#fff",
-              padding: "8px 12px",
-              borderRadius: 6,
-              zIndex: 99999,
-            }}
-          >
-            {toast}
-          </div>
-        )}
-        {!loading && hasFetched && (images.length === 0 || fetchError) && (
-          <div className="error-container">
-            <img
-              src={errorImage}
-              alt="Subreddit not found"
-              className="error-image"
+      {/* Password lock overlay */}
+      {!unlocked && (
+        <div className="pw-overlay">
+          <div className="pw-box">
+            <img src="/password.png" className="pw-image" alt="password" />
+            <input
+              type="password"
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  (async () => {
+                    try {
+                      const resp = await fetch(
+                        `/api/proxy?_action=check_password`,
+                        {
+                          method: "GET",
+                          headers: { "x-app-password": passwordInput },
+                        }
+                      );
+                      if (resp.ok) {
+                        try {
+                          sessionStorage.setItem("rb_unlocked", "1");
+                        } catch (ex) {}
+                        setUnlocked(true);
+                      } else {
+                        setPasswordInput("");
+                        showToast("Incorrect password");
+                      }
+                    } catch (err) {
+                      showToast("Error verifying password");
+                    }
+                  })();
+                }
+              }}
+              placeholder="Password"
             />
-            <h2>
-              {sourceType === "user" ? "User" : "Subreddit"} "
-              {sourceType === "user" ? userInput || subreddit : subreddit}"
-              could not be found
-            </h2>
-            <p>
-              {fetchError
-                ? "Network error or Reddit API unavailable. Please try again."
-                : "Please check the name and try again."}
-            </p>
+            <div style={{ marginTop: 12 }}>
+              <button
+                className="primary-btn"
+                onClick={async () => {
+                  try {
+                    const resp = await fetch(
+                      `/api/proxy?_action=check_password`,
+                      {
+                        method: "GET",
+                        headers: { "x-app-password": passwordInput },
+                      }
+                    );
+                    if (resp.ok) {
+                      try {
+                        sessionStorage.setItem("rb_unlocked", "1");
+                      } catch (ex) {}
+                      setUnlocked(true);
+                    } else {
+                      setPasswordInput("");
+                      showToast("Incorrect password");
+                    }
+                  } catch (err) {
+                    showToast("Error verifying password");
+                  }
+                }}
+              >
+                Unlock
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+      {unlocked && (
+        <div className={`reddit-browser ${errorActive ? "error" : ""}`}>
+          {/* Modal for config */}
+          {showConfig && (
+            <ConfigModal
+              subredditInputRef={subredditInputRef}
+              subredditInput={subredditInput}
+              setSubredditInput={setSubredditInput}
+              sourceType={sourceType}
+              setSourceType={setSourceType}
+              userInput={userInput}
+              setUserInput={setUserInput}
+              redditToken={redditToken}
+              setRedditToken={setRedditToken}
+              intervalSec={intervalSec}
+              setIntervalSec={setIntervalSec}
+              recentUsers={recentUsers}
+              setRecentUsers={setRecentUsers}
+              writeRecentUsersCookie={writeRecentUsersCookie}
+              recentSubreddits={recentSubreddits}
+              setRecentSubreddits={setRecentSubreddits}
+              writeRecentSubredditsCookie={writeRecentSubredditsCookie}
+              onClose={() => setShowConfig(false)}
+              onClearSeen={() => {
+                try {
+                  localStorage.removeItem("seenPosts");
+                } catch (e) {}
+                setSeen(new Set());
+                // bump trigger to force refetch and repopulate images
+                setFetchTrigger((v) => v + 1);
+              }}
+            />
+          )}
+
+          <ProgressBar
+            progress={progress}
+            intervalSec={intervalSec}
+            onToggleConfig={() => setShowConfig((v) => !v)}
+          />
+
+          {/* Human verification gate */}
+          {/* Human verification gate removed */}
+
+          {!loading &&
+            !fetchError &&
+            images.length > 0 &&
+            images[currentIdx] && (
+              <ImageViewer
+                images={images}
+                currentIdx={currentIdx}
+                onNext={handleNext}
+                onPrev={handlePrev}
+                paused={paused}
+                onTogglePaused={() => setPaused((v) => !v)}
+                activeSource={sourceType}
+                onAuthorClick={(raw) => {
+                  try {
+                    const uname = String(raw || "")
+                      .trim()
+                      .replace(/^\/?u\//i, "");
+                    if (!uname) return;
+                    // only add if not already present
+                    setRecentUsers((prev) => {
+                      if (prev && prev.includes(uname)) return prev;
+                      const next = [
+                        uname,
+                        ...(Array.isArray(prev) ? prev : []),
+                      ].slice(0, 10);
+                      try {
+                        writeRecentUsersCookie(next);
+                      } catch (e) {}
+                      // show confirmation toast
+                      showToast(`Added ${uname} to recent users`);
+                      return next;
+                    });
+                  } catch (e) {}
+                }}
+                onSubredditClick={(rawSub) => {
+                  try {
+                    const s = String(rawSub || "")
+                      .trim()
+                      .replace(/^\/?r\//i, "");
+                    if (!s) return;
+                    // only add if not already present (preserve original casing from input)
+                    setRecentSubreddits((prev) => {
+                      if (prev && prev.includes(s)) return prev;
+                      const next = [
+                        s,
+                        ...(Array.isArray(prev) ? prev : []),
+                      ].slice(0, 10);
+                      try {
+                        writeRecentSubredditsCookie(next);
+                      } catch (e) {}
+                      showToast(`Added r/${s} to recent subreddits`);
+                      return next;
+                    });
+                  } catch (e) {}
+                }}
+              />
+            )}
+          {/* small toast */}
+          {toast && (
+            <div
+              className="toast"
+              style={{
+                position: "fixed",
+                right: 16,
+                bottom: 16,
+                background: "rgba(0,0,0,0.8)",
+                color: "#fff",
+                padding: "8px 12px",
+                borderRadius: 6,
+                zIndex: 99999,
+              }}
+            >
+              {toast}
+            </div>
+          )}
+          {!loading && hasFetched && (images.length === 0 || fetchError) && (
+            <div className="error-container">
+              <img
+                src={errorImage}
+                alt="Subreddit not found"
+                className="error-image"
+              />
+              <h2>
+                {sourceType === "user" ? "User" : "Subreddit"} "
+                {sourceType === "user" ? userInput || subreddit : subreddit}"
+                could not be found
+              </h2>
+              <p>
+                {fetchError
+                  ? "Network error or Reddit API unavailable. Please try again."
+                  : "Please check the name and try again."}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }
